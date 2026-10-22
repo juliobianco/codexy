@@ -34,7 +34,8 @@ enum Snapshot {
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
             model.scene.warmup(Int(ProcessInfo.processInfo.environment["CODEXY_TICKS"] ?? "") ?? 60)
             write(PanelView(model: model).environment(\.colorScheme, .dark), "\(dir)/panel.png")
-            write(MiniBars(session: model.usage?.session?.percent, week: model.usage?.week?.percent, stale: false)
+            write(MiniBars(session: model.usage?.session?.percent, week: model.usage?.week?.percent, stale: false,
+                           style: Prefs.shared.barStyle, left: Prefs.shared.showLeft)
                 .padding(8).background(Color(white: 0.15)), "\(dir)/bar.png")
             exit(0)
         }

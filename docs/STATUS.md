@@ -45,6 +45,11 @@ Pending:
 - Distribution pieces: app icon with Theo (`scripts/make-icon.sh`, `Resources/AppIcon.icns`), `scripts/package.sh` (universal zip + sha256, tested: `x86_64 arm64`), README with pictures from `CODEXY_DEMO=1 ... -language en --readme docs/images` (made-up data). Still to do: release 0.1.0 on GitHub and the cask (both outward, need the owner's go).
 - Codex version (`Version.swift`): `codex --version` plus GitHub `releases/latest` (tag `rust-v0.163.0`), every 6 h, in the Details footer.
 
+## Done after 0.1.0 (branch `weekly-top-and-resets`, contribution)
+- Week on top when Codex reports no 5h window (Plus on 2026-10-22: `primary` is the 10080-min window, `secondary` null): `AppModel.top` / `topIsWeek` feed the hero, its bar, the reset line, the hearts, the mascot and the bubble; the week row is hidden then. Menu bar: one `W` row that always shows the number.
+- Resets card (`Resets.swift`, `ResetsLine` in `StatusUI.swift`): available from `rateLimitResetCredits.availableCount`; used counted by `ResetLog` from the longest window's snapshots (rollout `token_count` lines, oldest first, then the live read): a later window end whose window starts before the newest one ended, with less used, is one reset. Older windows seen again (stale session, second account) never count. Checked on a real history (Dec 2025 → Oct 2026, ~31k snapshots): 24 early resets, used % dropping to ~0, often from 100. First scan ~30 s at utility priority, then only files changed since (~0.04 s). Kept in `resets.json`.
+- Not distinguishable: a global early reset from OpenAI counts as used. `ResetsTests` (7) ran through a harness on a Mac without Xcode (Command Line Tools ship no XCTest); CI runs them for real.
+
 ## Pending
 Checks (cheap, no code unless they fail):
 - "Waiting for you" in a session with approvals on (`codex -a on-request` or similar): does the "?" show, and does it clear after the answer?

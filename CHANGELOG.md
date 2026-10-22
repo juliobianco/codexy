@@ -1,6 +1,12 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- Resets card in the panel and the floating card, framed in purple: two big numbers, reset credits available (from Codex, green when there is one) and resets used, with how many in the last 7 days and the last one. Codex lists only the credits still available, so the used ones are counted from the limits it reports: a weekly window that starts before the previous one ended, with less used. Read from every rollout file once (all the history on the Mac), then from the files changed since, and from the live read. Kept in `resets.json`. An early reset OpenAI gives everyone counts too.
+
+### Changed
+- Percentages show what is left, as Codex does ("% left"): 100% is a full limit, the bars drain as you use it. Colours still follow the use (green, yellow, red as it runs out). Settings → Show → "Show what is left" turns back to the used percent. The line under the big number says what it is ("Left this week · resets in…"); the pace lines say "runs out at…" instead of "100% at…", right in both modes. The history chart still draws the use.
+- When Codex reports no 5h window (Plus today), the big number, its bar, the reset line, the hearts and the mascot follow the weekly limit, labelled "week", and the separate week row is hidden. The menu bar shows one row with the weekly percent, whatever the label style; the folded bubble shows the week.
 
 ## [0.1.0] - 2026-10-22
 ### Added

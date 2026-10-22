@@ -21,6 +21,10 @@ final class AppModel {
     @ObservationIgnored private let scanner = RolloutScanner()
     @ObservationIgnored private var scanningProjects = false
     @ObservationIgnored private var scannedAt = Date.distantPast
+    /// Resets used, counted from the rollout files and the live read (see ResetLog).
+    var resets = ResetLog.load()
+    @ObservationIgnored private var scanningResets = false
+    @ObservationIgnored private var resetsScanned = false
     var now = Date()
     private var failStreak = 0
     // MARK: alerts: a session waits for you, a limit started over
@@ -50,12 +54,13 @@ final class AppModel {
         every(900) { [self] in refreshProjects() }
         every(120) { [self] in refreshStatus() }
         every(6 * 3600) { [self] in refreshVersion() }
+        every(3600) { [self] in refreshResets() }
         // After the Mac wakes up a probe that was running got no answer: ask again instead of waiting for the next tick.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { DispatchQueue.main.asyncAfter(deadline: .now() + 5) { self?.refreshUsage(); self?.refreshStatus() } }
         }
         if Prefs.shared.alertsNotifyPace { Notifier.authorize() }     // on by default: ask once, at the first start
-        refreshUsage(); refreshSessions(); refreshStatus(); refreshVersion()
+        refreshUsage(); refreshSessions(); refreshStatus(); refreshVersion(); refreshResets()
         // The floating widget comes back where it was left.
         if Prefs.shared.floatOpen, ProcessInfo.processInfo.environment["CODEXY_NO_FLOAT"] == nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in FloatingWidget.shared.show(model: self, animated: false) }
@@ -84,6 +89,12 @@ final class AppModel {
                     self.scene.observe(model: self)
                     self.checkPace()
                     if self.history.add(session: u.session?.percent, week: u.week?.percent), self.persist { self.history.save() }
+                    // Live, a used reset shows at once; before the first scan the files' older windows would be skipped.
+                    if self.resetsScanned, let s = u.snapshot {
+                        var r = self.resets
+                        r.observe(s)
+                        if r != self.resets { self.resets = r; if self.persist { r.save() } }
+                    }
                 case .failed(let why):   // keep the last numbers, marked stale, and try again soon
                     self.failStreak += 1
                     self.usageFailed = true; self.usageError = why
@@ -148,6 +159,21 @@ final class AppModel {
         Task.detached(priority: .utility) {
             let r = scanner.scan(since: Date().addingTimeInterval(-7 * 86400))
             await MainActor.run { self.projects = r; self.scannedAt = Date(); self.scanningProjects = false }
+        }
+    }
+
+    /// Early resets from the rollout files changed since the last scan: all of them the first time (half a minute), then a few.
+    func refreshResets() {
+        guard !DevFlags.demo, !scanningResets else { return }
+        scanningResets = true
+        let log = resets
+        Task.detached(priority: .utility) {
+            var r = log
+            r.scan()
+            await MainActor.run {
+                self.resets = r; self.resetsScanned = true; self.scanningResets = false
+                if self.persist { r.save() }
+            }
         }
     }
 
@@ -261,9 +287,21 @@ final class AppModel {
     }
 
     // MARK: texts shared by the panel and the floating widget
+    /// The big number on top: the 5h limit, or the week when Codex reports no 5h window (Plus, today).
+    var top: UsageLine? { usage?.session ?? usage?.week }
+    var topIsWeek: Bool { usage?.session == nil && usage?.week != nil }
+    var topPaceText: String? { topIsWeek ? weekPaceText : sessionPaceText }
+    /// What the big number is, at the start of the line under it: "Left this week", "Left", "Week"; nothing for the 5h use.
+    var topLabel: String? {
+        if Prefs.shared.showLeft { return L.t(topIsWeek ? "left.week" : "left") }
+        return topIsWeek ? L.t("week.line") : nil
+    }
+    /// "Left this week · resets in 6d 23h".
+    var topLine: String { topLabel.map { $0 + " · " + resetText } ?? resetText }
+
     var resetText: String {
         guard let u = usage else { return usageFailed ? L.t("noDataWhy", usageError) : L.t("loading") }
-        guard let s = u.session else { return L.t("noData") }
+        guard let s = u.session ?? u.week else { return L.t("noData") }
         let base: String
         if let r = s.reset, let span = Format.span(to: r, now: now) { base = L.t("resetsIn", span) }
         else { base = s.percent == 0 ? L.t("windowClosed") : L.t("resetsSoon") }
@@ -289,7 +327,9 @@ final class AppModel {
     func limitText(_ l: UsageLine?) -> String {
         guard let l else { return "" }
         let span = l.reset.flatMap { Format.span(to: $0, now: now) }
-        return span.map { "\(l.percent)% · \($0)" } ?? "\(l.percent)%"
+        let p = Prefs.shared
+        let pct = "\(p.shown(l.percent))%" + (p.showLeft ? " " + L.t("left.word") : "")
+        return span.map { "\(pct) · \($0)" } ?? pct
     }
 
     var sessionsText: String {

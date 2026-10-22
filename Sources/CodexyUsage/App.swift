@@ -86,13 +86,13 @@ struct MenuBarLabel: View {
     var body: some View {
         // The bitmap is drawn by an ImageRenderer, outside this view's tracking: touch what it uses, so a change redraws the label.
         let p = Prefs.shared
-        _ = (p.warnPercent, p.critPercent, p.barStyle)
+        _ = (p.warnPercent, p.critPercent, p.barStyle, p.showLeft)
         return Image(nsImage: render())
     }
 
     @MainActor private func render() -> NSImage {
         let content = MiniBars(session: model.usage?.session?.percent, week: model.usage?.week?.percent,
-                               stale: model.stale, style: Prefs.shared.barStyle,
+                               stale: model.stale, style: Prefs.shared.barStyle, left: Prefs.shared.showLeft,
                                waiting: model.alertWaiting, celebrating: model.alertCelebrating, tick: model.alertTick)
         let r = ImageRenderer(content: content)
         r.scale = NSScreen.main?.backingScaleFactor ?? 2
@@ -107,7 +107,8 @@ struct MiniBars: View {
     let week: Int?
     let stale: Bool
     var style = "bars"
-    var waiting = false          // a session waits for you: a yellow "?" that blinks
+    var left = false             // numbers and fill show what is left; colours still follow the use
+    var waiting = false         // a session waits for you: a yellow "?" that blinks
     var celebrating = false      // a limit started over: confetti over the bars
     var tick = 0
 
@@ -119,8 +120,12 @@ struct MiniBars: View {
                     .opacity(tick % 2 == 0 ? 1 : 0.3)
             }
             VStack(alignment: .leading, spacing: 1.5) {
-                row("5h", session)
-                row("W", week)
+                if session == nil, let week {          // only a weekly limit (Plus, today): one row, with its number
+                    row("W", week, number: true)
+                } else {
+                    row("5h", session)
+                    row("W", week)
+                }
             }
             .opacity(stale ? 0.55 : 1)
             .overlay { if celebrating { Confetti(tick: tick) } }
@@ -129,8 +134,9 @@ struct MiniBars: View {
         .frame(height: 18)
     }
 
-    private func row(_ label: String, _ pct: Int?) -> some View {
-        HStack(spacing: 3) {
+    private func row(_ label: String, _ pct: Int?, number: Bool = false) -> some View {
+        let shown = pct.map { left ? max(0, 100 - $0) : $0 }
+        return HStack(spacing: 3) {
             Text(label)
                 .font(.system(size: 7.5, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.85))
@@ -138,13 +144,13 @@ struct MiniBars: View {
             if style != "numbers" {
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.28)).frame(width: 30, height: 4)
-                    if let pct {
-                        Capsule().fill(T.level(pct)).frame(width: max(3, 30 * CGFloat(min(pct, 100)) / 100), height: 4)
+                    if let pct, let shown {
+                        Capsule().fill(T.level(pct)).frame(width: max(3, 30 * CGFloat(min(shown, 100)) / 100), height: 4)
                     }
                 }
             }
-            if style != "bars" {
-                Text(pct.map { "\($0)%" } ?? "--")
+            if style != "bars" || number {
+                Text(shown.map { "\($0)%" } ?? "--")
                     .font(.system(size: 8, weight: .semibold, design: .rounded)).monospacedDigit()
                     .foregroundStyle(pct.map { T.level($0) } ?? Color.white.opacity(0.6))
                     .fixedSize()                  // "100%" must fit: a fixed 22 pt cut it to "10…"

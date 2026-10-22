@@ -66,6 +66,7 @@ final class Prefs: @unchecked Sendable {
     var skin: String { didSet { d.set(skin, forKey: "skin") } }
     var pet: String { didSet { d.set(pet, forKey: "pet") } }                          // a file in pets/, theo by default
     var barStyle: String { didSet { d.set(barStyle, forKey: "barStyle") } }          // bars, barsNumbers, numbers
+    var showLeft: Bool { didSet { d.set(showLeft, forKey: "showLeft") } }            // percent left, as Codex says it; off: used
     var showClawd: Bool { didSet { d.set(showClawd, forKey: "showClawd") } }
     var showSky: Bool { didSet { d.set(showSky, forKey: "showSky") } }
     var showSessions: Bool { didSet { d.set(showSessions, forKey: "showSessions") } }
@@ -101,6 +102,7 @@ final class Prefs: @unchecked Sendable {
         skin = d.string(forKey: "skin") ?? "classic"
         pet = d.string(forKey: "pet") ?? "theo"
         barStyle = d.string(forKey: "barStyle") ?? "bars"
+        showLeft = b("showLeft", true)
         showClawd = b("showClawd", true); showSky = b("showSky", true); showSessions = b("showSessions", true)
         showStatus = b("showStatus", true); showAccount = b("showAccount", true); showDetails = b("showDetails", true); showFable = b("showFable", true)
         warnPercent = i("warnPercent", Format.warnPercent); critPercent = i("critPercent", Format.critPercent)
@@ -113,6 +115,10 @@ final class Prefs: @unchecked Sendable {
     }
 
     private func refreshPalette() { palette = Themes.palette(theme, accent: accent) }
+
+    /// The number and bar fill for a used percent: what is left (as Codex shows it) or what was used.
+    /// Colours always follow the used percent (`T.level`).
+    func shown(_ used: Int) -> Int { showLeft ? max(0, 100 - used) : used }
 
     /// A manual place, if the user chose one and typed numbers that make sense.
     var manualPlace: (lat: Double, lon: Double)? {

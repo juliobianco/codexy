@@ -39,19 +39,27 @@ extension AppModel {
         return w == k ? status.replacingOccurrences(of: "_", with: " ") : w
     }
 
-    /// "1 reset credit · expires in 9d 0h · 125.5 credits": only what is there, nil when there is nothing.
+    /// "125.5 credits": paid credits only (reset credits have their own row), nil when there is nothing.
     var creditsText: String? {
-        guard let u = usage else { return nil }
+        guard let c = usage?.credits, c.worthShowing else { return nil }
+        return c.unlimited ? L.t("credits.unlimited") : L.t("credits.balance", c.balance ?? "?")
+    }
+
+    /// What Codex says is left (live read only) and the early resets counted so far; nil while unknown.
+    var resetsAvailable: Int? { usage?.resetCredits?.available }
+    var resetsUsed: Int? { resets.since == nil ? nil : resets.used.count }
+
+    /// "5 in the last 7 days · last Oct 21, 13:10 · next expires in 3d 2h": nil when there is nothing to add.
+    var resetsDetail: String? {
         var parts: [String] = []
-        if let r = u.resetCredits, r.available > 0 {
-            parts.append(L.count("resetCredit", r.available))
-            if let e = r.nextExpiry, let span = Format.span(to: e, now: now) { parts.append(L.t("resetCredit.expires", span)) }
-        }
-        if let c = u.credits, c.worthShowing {
-            parts.append(c.unlimited ? L.t("credits.unlimited") : L.t("credits.balance", c.balance ?? "?"))
-        }
+        let week = resets.count(since: now.addingTimeInterval(-7 * 86400))
+        if week > 0 { parts.append(L.t("resets.week", week)) }
+        if let d = resets.last { parts.append(L.t("resets.last", L.date(L.t("resets.date")).string(from: d))) }
+        if let e = usage?.resetCredits?.nextExpiry, let span = Format.span(to: e, now: now) { parts.append(L.t("resetCredit.expires", span)) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
+
+    var resetsTip: String { L.t("resets.tip", resets.since.map { L.date(L.t("resets.date")).string(from: $0) } ?? "–") }
 }
 
 /// Dot + headline + Codex details; a click opens status.openai.com.
@@ -83,7 +91,8 @@ extension AppModel {
         var out: [String] = []
         if let r = u.reachedType { out.append(L.t("limit.reached", r.replacingOccurrences(of: "_", with: " "))) }
         for e in u.extras {
-            let parts = [e.session.map { "5h \($0.percent)%" }, e.week.map { "\(L.t("hist.week")) \($0.percent)%" }].compactMap { $0 }
+            let p = Prefs.shared
+            let parts = [e.session.map { "5h \(p.shown($0.percent))%" }, e.week.map { "\(L.t("hist.week")) \(p.shown($0.percent))%" }].compactMap { $0 }
             out.append("\(e.name): " + parts.joined(separator: " · "))
         }
         return out
@@ -102,6 +111,48 @@ struct ExtraLimitsLine: View {
 }
 
 /// Reset credits and paid credits, under the week row. Hidden when Codex reports none.
+/// Reset credits, in a card of their own: how many Codex says are left, how many were used (see ResetLog).
+/// Hidden until either is known.
+struct ResetsLine: View {
+    let model: AppModel
+
+    var body: some View {
+        if model.resetsAvailable != nil || model.resetsUsed != nil {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill").font(.system(size: 11))
+                    Text(L.t("resets")).font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(T.purple)
+                HStack(spacing: 8) {
+                    // Available is green when there is one to use; used is the purple of the card.
+                    tile(model.resetsAvailable, "resets.available", color: (model.resetsAvailable ?? 0) > 0 ? T.ok : T.muted)
+                    tile(model.resetsUsed, "resets.used", color: T.purple)
+                }
+                if let d = model.resetsDetail {
+                    Text(d).font(.system(size: 10)).foregroundStyle(T.muted).lineLimit(1).truncationMode(.tail)
+                }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 9).fill(T.purple.opacity(0.10)))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(T.purple.opacity(0.35), lineWidth: 1))
+            .contentShape(Rectangle())
+            .help(model.resetsTip)
+        }
+    }
+
+    /// A big number over its word; "…" while it is still being counted.
+    private func tile(_ n: Int?, _ key: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(n.map(String.init) ?? "…").font(.system(size: 26, weight: .light)).monospacedDigit().foregroundStyle(color)
+            Text(n.map { L.word(key, $0) } ?? L.t("resets.counting")).font(.system(size: 10.5, weight: .medium)).foregroundStyle(T.text2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 9).padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Color.black.opacity(0.22)))
+    }
+}
+
 struct CreditsLine: View {
     let model: AppModel
 

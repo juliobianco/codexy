@@ -181,7 +181,7 @@ struct BarTab: View {
                 ForEach([("bars", "style.bars"), ("barsNumbers", "style.barsNum"), ("numbers", "style.numbers")], id: \.0) { s in
                     Button { prefs.barStyle = s.0 } label: {
                         VStack(spacing: 6) {
-                            MiniBars(session: 53, week: 21, stale: false, style: s.0)
+                            MiniBars(session: 53, week: 21, stale: false, style: s.0, left: prefs.showLeft)
                                 .padding(.horizontal, 10).padding(.vertical, 5)
                                 .background(Capsule().fill(Color.black.opacity(0.55)))
                             Text(L.t(s.1)).font(.system(size: 11)).foregroundStyle(prefs.barStyle == s.0 ? T.textHi : T.muted)
@@ -195,6 +195,7 @@ struct BarTab: View {
             }
         }
         group(L.t("set.show")) {
+            SwitchRow(label: L.t("show.left"), hint: L.t("show.left.hint"), isOn: $prefs.showLeft)
             SwitchRow(label: L.t("show.clawd"), isOn: $prefs.showClawd)
             SwitchRow(label: L.t("show.sky"), isOn: $prefs.showSky)
             SwitchRow(label: L.t("show.sessions"), isOn: $prefs.showSessions)

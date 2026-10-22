@@ -275,7 +275,7 @@ struct FloatingCard: View {
                 if model.alertWaiting || model.alertCelebrating { AlertBadge(model: model) }
                 else { Text(L.t("app.title")).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(T.muted) }
                 Spacer()
-                if let p = model.usage?.session?.percent { HeartsView(halves: Format.heartHalves(sessionPercent: p)).padding(.trailing, 12) }
+                if let p = model.top?.percent { HeartsView(halves: Format.heartHalves(sessionPercent: p)).padding(.trailing, 12) }
                 button("arrow.down.right.and.arrow.up.left", L.t("float.collapse")) { controller.toggleExpanded() }
                 button("xmark", L.t("float.close")) { controller.hide() }.padding(.leading, 9)
             }
@@ -285,16 +285,19 @@ struct FloatingCard: View {
                     .help(prefs.showSky ? model.skyTip : "")
                     .onAppear { model.scene.start() }
                     .onDisappear { model.scene.stop() }
-                ProgressBar(percent: model.usage?.session?.percent, height: 7, color: model.usage?.session.map { T.level($0.percent) } ?? T.ok)
+                ProgressBar(percent: model.top.map { prefs.shown($0.percent) }, height: 7, color: model.top.map { T.level($0.percent) } ?? T.ok)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.resetText).font(.system(size: 12)).foregroundStyle(T.text2)
-                if let p = model.sessionPaceText { Text(p).font(.system(size: 10)).foregroundStyle(T.dim) }
+                Text(model.topLine).font(.system(size: 12)).foregroundStyle(T.text2)
+                if let p = model.topPaceText { Text(p).font(.system(size: 10)).foregroundStyle(T.dim) }
             }.padding(.top, 8)
             HealthLine(model: model).padding(.top, 6)
-            LimitRow(model: model, title: L.t("week"), line: model.usage?.week, color: T.accent, pace: model.weekPaceText).padding(.top, 9)
+            if !model.topIsWeek {
+                LimitRow(model: model, title: L.t("week"), line: model.usage?.week, color: T.accent, pace: model.weekPaceText).padding(.top, 9)
+            }
             ExtraLimitsLine(model: model).padding(.top, 6)
             CreditsLine(model: model).padding(.top, 6)
+            ResetsLine(model: model).padding(.top, 9)
             if prefs.showStatus {
                 HStack(spacing: 6) {
                     Circle().fill(model.statusColor).frame(width: 7, height: 7)
@@ -322,15 +325,18 @@ struct BubbleView: View {
     let model: AppModel
 
     var body: some View {
-        let s = model.usage?.session?.percent, w = model.usage?.week?.percent
+        let p = Prefs.shared
+        let s = model.top?.percent, w = model.topIsWeek ? nil : model.usage?.week?.percent
         ZStack {
             ring(1, 5, 0, T.track)
-            ring(CGFloat(s ?? 0) / 100, 5, 0, s.map { T.level($0) } ?? T.dim)
-            ring(1, 2.5, 9, T.track)
-            ring(CGFloat(w ?? 0) / 100, 2.5, 9, T.accent)
+            ring(CGFloat(s.map(p.shown) ?? 0) / 100, 5, 0, s.map { T.level($0) } ?? T.dim)
+            if !model.topIsWeek {
+                ring(1, 2.5, 9, T.track)
+                ring(CGFloat(w.map(p.shown) ?? 0) / 100, 2.5, 9, T.accent)
+            }
             VStack(spacing: -2) {
-                Text(s.map { "\($0)" } ?? "--").font(.system(size: 21, weight: .light)).foregroundStyle(s.map { T.level($0) } ?? T.muted).monospacedDigit()
-                Text("5h").font(.system(size: 8.5, weight: .semibold)).foregroundStyle(T.dim)
+                Text(s.map { "\(p.shown($0))" } ?? "--").font(.system(size: 21, weight: .light)).foregroundStyle(s.map { T.level($0) } ?? T.muted).monospacedDigit()
+                Text(model.topIsWeek ? L.t("hist.week") : "5h").font(.system(size: 8.5, weight: .semibold)).foregroundStyle(T.dim)
             }
         }
         .frame(width: 76, height: 76)
