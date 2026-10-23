@@ -32,5 +32,9 @@ swift build --scratch-path $S && swift test --scratch-path $S
 ```
 Build outside `~/Documents`: its file provider adds attributes that break `codesign`.
 
+## Orcy, for Orca
+
+This package also builds **Orcy**, a sibling app for [Orca](https://github.com/stablyai/orca): agents working and waiting for you, worktrees by state, today and the last 7 days, with a pixel orca. See [docs/ORCY.md](docs/ORCY.md); build it with `./scripts/bundle-orcy.sh`.
+
 ## Credits
 Built on [Claudy Usage](https://github.com/juliobianco/claudy-usage-mac), a Swift port of [Enhed/clawd-usage-winwidget](https://github.com/Enhed/clawd-usage-winwidget) (both MIT).

@@ -13,6 +13,12 @@ Status and backlog: `docs/STATUS.md`. Keep it and `CHANGELOG.md` (*Unreleased*) 
 - `Sources/CodexyUsage`: SwiftUI, same files as Claudy. `Model.swift` polls `CodexCLI.fetchUsage()` once a minute.
 - Data: `~/Library/Application Support/Codexy`, log `~/Library/Logs/Codexy.log`, bundle id `dev.julio.codexy`. Never share files or defaults with Claudy.
 
+## Orcy (second app in the package)
+- `Sources/OrcyCore` (Orca readers: `Orca.swift`, `OrcaHistory.swift`, `OrcyLog`), `Sources/Orcy` (UI, a trimmed copy of `CodexyUsage` plus `pets/orca.txt`), `Tests/OrcyCoreTests`. Orcy imports `CodexyCore` for the mascot, pets, sky and format: a change there changes both apps.
+- `scripts/bundle-orcy.sh`, `scripts/make-icon-orcy.sh`, `Resources/Orcy/` (icon, VERSION). Details and data sources: `docs/ORCY.md`.
+- Never parse prompts, agent messages, tool input or terminal previews from Orca's answers; never call the Orca CLI while Orca is closed.
+- `worktree ps` omits worktrees Orca did not create; `terminal list` (with `agentIdentity`) has their terminals and `OrcaParser.merge` rebuilds them. Each read is two CLI calls (~0.3 s CPU), hence the adaptive poll (10 s busy, 30 s quiet).
+
 ## Where the numbers come from
 1. `codex app-server` over stdio (JSON-RPC lines): `initialize` (clientInfo name `codexy`), `initialized`, `account/rateLimits/read`.
    Answer: `result.rateLimits.{primary,secondary}.{usedPercent, windowDurationMins, resetsAt}` + `planType`. No model call.

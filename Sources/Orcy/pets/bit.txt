@@ -1,0 +1,65 @@
+---
+name: Bit
+b: #8E9AAF
+s: #1B2233
+e: #5EE6A8
+g: #5EE6A8
+y: #F2C14E
+r: #FF6B6B
+d: #2A1B22
+---
+[normal]
+........yy........
+........bb........
+..bbbbbbbbbbbbbb..
+..bssssssssssssb..
+..bsseesssseessb..
+..bsseesssseessb..
+bbbssssssssssssbbb
+..bssssggggssssb..
+..bssssssssssssb..
+..bbbbbbbbbbbbbb..
+....bb......bb....
+...bbb......bbb...
+
+[slack]
+........yy........
+........bb........
+..bbbbbbbbbbbbbb..
+..bssssssssssssb..
+..bsseesssseessb..
+..bssssssssssssb..
+bbbssssssssssssbbb
+..bsssgssssgsssb..
+..bssssggggssssb..
+..bbbbbbbbbbbbbb..
+....bb......bb....
+...bbb......bbb...
+
+[crit]
+........rr........
+........bb........
+..bbbbbbbbbbbbbb..
+..bddddddddddddb..
+..bddrrddddrrddb..
+..bddrrddddrrddb..
+bbbddddddddddddbbb
+..bdddddrrdddddb..
+..bddddddddddddb..
+..bbbbbbbbbbbbbb..
+....bb......bb....
+...bbb......bbb...
+
+[sleep]
+........yy........
+........bb........
+..bbbbbbbbbbbbbb..
+..bssssssssssssb..
+..bssssssssssssb..
+..bssggssssggssb..
+bbbssssssssssssbbb
+..bssssssssssssb..
+..bssssggggssssb..
+..bbbbbbbbbbbbbb..
+....bb......bb....
+...bbb......bbb...

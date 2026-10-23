@@ -1,0 +1,67 @@
+---
+name: Livrinho
+d: #4E3A78
+f: #4E3A78
+c: #7B5EA7
+a: #7B5EA7
+g: #E2B84B
+w: #F4F1E8
+k: #141416
+m: #141416
+z: #9FD3FF
+---
+[normal]
+...dccccccccccw...
+...dccccccccccww..
+...dcggggggggcww..
+...dcgccccccgcww..
+...dcgckcckcgcww..
+...dcgckcckcgcww..
+..adcgccccccgcwwa.
+...dcgcmmmmcgcww..
+...dcgccccccgcww..
+...dcggggggggcww..
+...dccccccccccww..
+....ff......ff....
+
+[slack]
+...dccccccccccw...
+...dccccccccccww..
+...dcggggggggcww..
+..adcgccccccgcwwa.
+...dcgccccccgcww..
+...dcgckcckcgcww..
+...dcgccccccgcww..
+...dcgcmccmcgcww..
+...dcgccmmccgcww..
+...dcggggggggcww..
+...dccccccccccww..
+....ff......ff....
+
+[crit]
+.z.dccccccccccw...
+.z.dccccccccccww..
+...dcggggggggcww..
+...dcgccccccgcww..
+...dcgckcckcgcww..
+...dcgckcckcgcww..
+..adcgccccccgcwwa.
+...dcgccmmccgcww..
+...dcgccmmccgcww..
+...dcggggggggcww..
+...dccccccccccww..
+....ff......ff....
+
+[sleep]
+...dccccccccccw...
+...dccccccccccww..
+...dcggggggggcww..
+..adcgccccccgcwwa.
+...dcgccccccgcww..
+...dcgkkcckkgcww..
+...dcgccccccgcww..
+...dcgcmccmcgcww..
+...dcgccmmccgcww..
+...dcggggggggcww..
+...dccccccccccww..
+....ff......ff....

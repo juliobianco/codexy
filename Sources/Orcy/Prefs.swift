@@ -1,0 +1,149 @@
+import SwiftUI
+import CodexyCore
+import OrcyCore
+
+// Everything the user can choose, in one observable object. Views read it while drawing, so a change shows at once.
+// Stored in UserDefaults (domain dev.julio.orcy): `defaults read dev.julio.orcy`.
+
+struct Palette {
+    var bg, code, card, textHi, text2, muted, dim, faint, off, accent: Color
+    var pattern: String?
+}
+
+enum Themes {
+    static let ids = ["auto", "classic", "oled", "midnight", "mocha", "forest", "halloween"]
+
+    // Classic is the base; a theme lists only what differs (lib/theme.ps1).
+    static let base: [String: UInt32] = [
+        "bg": 0x1A1A1E, "code": 0x141416, "card": 0x26262C, "textHi": 0xF4F4F5,
+        "text2": 0xD4D4D8, "muted": 0x8B8B94, "dim": 0x6B7280, "faint": 0x52525B,
+        "off": 0x3F3F46, "accent": 0x60A5FA]
+    static let overrides: [String: [String: UInt32]] = [
+        "oled": ["bg": 0x000000, "code": 0x0A0A0A, "card": 0x141414],
+        "midnight": ["bg": 0x0F172A, "code": 0x0B1222, "card": 0x1E293B, "textHi": 0xF1F5F9,
+                     "text2": 0xCBD5E1, "muted": 0x8494AB, "dim": 0x64748B, "faint": 0x475569,
+                     "off": 0x334155, "accent": 0x38BDF8],
+        "mocha": ["bg": 0x1E1E2E, "code": 0x181825, "card": 0x313244, "textHi": 0xF5F7FF,
+                  "text2": 0xBAC2DE, "muted": 0x9399B2, "dim": 0x7F849C, "faint": 0x585B70,
+                  "off": 0x45475A, "accent": 0x89B4FA],
+        "forest": ["bg": 0x111814, "code": 0x0C120E, "card": 0x1C2A21, "textHi": 0xF0F5F1,
+                   "text2": 0xCFDBD2, "muted": 0x86998B, "dim": 0x66786B, "faint": 0x4B5B50,
+                   "off": 0x35433A, "accent": 0x5EEAD4],
+        "halloween": ["bg": 0x1C1326, "code": 0x140E1C, "card": 0x2A1D38, "textHi": 0xFFF7ED,
+                      "text2": 0xE7D3C4, "muted": 0xA08B9C, "dim": 0x7E6A80, "faint": 0x5B4A63,
+                      "off": 0x3F3048, "accent": 0xF97316]]
+
+    /// "auto" follows the season: Halloween in September to November, classic otherwise.
+    static func resolve(_ id: String, now: Date = Date()) -> String {
+        if id == "auto" { return (9...11).contains(Calendar.current.component(.month, from: now)) ? "halloween" : "classic" }
+        return ids.contains(id) ? id : "classic"
+    }
+
+    static func palette(_ id: String, accent: String?) -> Palette {
+        let r = resolve(id)
+        func c(_ k: String) -> Color { Color(hex: overrides[r]?[k] ?? base[k]!) }
+        var p = Palette(bg: c("bg"), code: c("code"), card: c("card"), textHi: c("textHi"), text2: c("text2"), muted: c("muted"),
+                        dim: c("dim"), faint: c("faint"), off: c("off"), accent: c("accent"))
+        if let a = accent, !a.isEmpty { p.accent = Color(hexString: a) }
+        if r == "halloween" { p.pattern = "halloween" }
+        return p
+    }
+
+    /// Swatch for the picker: the theme's background and its accent.
+    static func swatch(_ id: String) -> (Color, Color) {
+        let r = resolve(id)
+        return (Color(hex: overrides[r]?["bg"] ?? base["bg"]!), Color(hex: overrides[r]?["accent"] ?? base["accent"]!))
+    }
+}
+
+@Observable
+final class Prefs: @unchecked Sendable {
+    static let shared = Prefs()
+    private let d = UserDefaults.standard
+
+    var language: String { didSet { d.set(language, forKey: "language") } }          // auto, en, pt
+    var theme: String { didSet { d.set(theme, forKey: "theme"); refreshPalette() } }
+    var accent: String { didSet { d.set(accent, forKey: "accent"); refreshPalette() } }   // "" = the theme's own
+    var skin: String { didSet { d.set(skin, forKey: "skin") } }
+    var pet: String { didSet { d.set(pet, forKey: "pet") } }                          // a file in pets/, orca by default
+    var showClawd: Bool { didSet { d.set(showClawd, forKey: "showClawd") } }
+    var showSky: Bool { didSet { d.set(showSky, forKey: "showSky") } }
+    var showDetails: Bool { didSet { d.set(showDetails, forKey: "showDetails") } }        // the 7-day history
+    var showIdle: Bool { didSet { d.set(showIdle, forKey: "showIdle") } }                // stopped worktrees in the list
+    var warnPercent: Int { didSet { d.set(warnPercent, forKey: "warnPercent") } }
+    var critPercent: Int { didSet { d.set(critPercent, forKey: "critPercent") } }
+    var weatherManual: Bool { didSet { d.set(weatherManual, forKey: "weatherManual") } }
+    var weatherLat: String { didSet { d.set(weatherLat, forKey: "weatherLatText") } }
+    var weatherLon: String { didSet { d.set(weatherLon, forKey: "weatherLonText") } }
+
+    var alertsAnimate: Bool { didSet { d.set(alertsAnimate, forKey: "alertsAnimate") } }
+    var alertsNotifyWaiting: Bool { didSet { d.set(alertsNotifyWaiting, forKey: "alertsNotifyWaiting") } }
+    var alertsNotifyDone: Bool { didSet { d.set(alertsNotifyDone, forKey: "alertsNotifyDone") } }      // an agent finished its turn
+
+    private(set) var palette: Palette
+
+    private init() {
+        let d = UserDefaults.standard
+        func b(_ k: String, _ def: Bool) -> Bool { d.object(forKey: k) == nil ? def : d.bool(forKey: k) }
+        func i(_ k: String, _ def: Int) -> Int { d.object(forKey: k) == nil ? def : d.integer(forKey: k) }
+        language = d.string(forKey: "language") ?? "auto"
+        let t = d.string(forKey: "theme") ?? "classic", a = d.string(forKey: "accent") ?? ""
+        theme = t; accent = a
+        skin = d.string(forKey: "skin") ?? "classic"
+        pet = d.string(forKey: "pet") ?? "orca"
+        showClawd = b("showClawd", true); showSky = b("showSky", true); showIdle = b("showIdle", true)
+        showDetails = b("showDetails", true)
+        warnPercent = i("warnPercent", Format.warnPercent); critPercent = i("critPercent", Format.critPercent)
+        weatherManual = b("weatherManual", false)
+        weatherLat = d.string(forKey: "weatherLatText") ?? ""; weatherLon = d.string(forKey: "weatherLonText") ?? ""
+        alertsAnimate = b("alertsAnimate", true); alertsNotifyWaiting = b("alertsNotifyWaiting", true); alertsNotifyDone = b("alertsNotifyDone", false)
+        palette = Themes.palette(t, accent: a)
+    }
+
+    private func refreshPalette() { palette = Themes.palette(theme, accent: accent) }
+
+    /// A manual place, if the user chose one and typed numbers that make sense.
+    var manualPlace: (lat: Double, lon: Double)? {
+        guard weatherManual, let la = Double(weatherLat.replacingOccurrences(of: ",", with: ".")),
+              let lo = Double(weatherLon.replacingOccurrences(of: ",", with: ".")),
+              (-90...90).contains(la), (-180...180).contains(lo) else { return nil }
+        return (la, lo)
+    }
+}
+
+
+enum AppInfo {
+    /// ~/Library/Application Support/Orcy: your own pets and skins.
+    static var dataDir: URL { URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/Orcy") }
+    /// From the bundle (scripts/bundle.sh writes the VERSION file into it); "dev" when run unbundled.
+    static let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ProcessInfo.processInfo.environment["ORCY_VERSION"] ?? "dev"
+}
+
+/// Switches for the dev tools (snapshots): never set in the real app.
+enum DevFlags {
+    /// Offscreen renders cannot draw AppKit-backed controls (a Menu shows as a "prohibited" sign); views draw a plain stand-in.
+    nonisolated(unsafe) static var offscreen = false
+    static var demo: Bool { ProcessInfo.processInfo.environment["ORCY_DEMO"] != nil }
+}
+
+
+/// ORCY_REDACT: real numbers, but no names of yours: projects, branches, sessions and the e-mail are replaced by
+/// stable stand-ins. For screenshots made from real use.
+enum Redact {
+    static let on = ProcessInfo.processInfo.environment["ORCY_REDACT"] != nil
+    nonisolated(unsafe) private static var seen: [String: String] = [:]
+
+    static func name(_ s: String, _ kind: String) -> String {
+        guard on else { return s }
+        if kind == "branch", s == "main" || s == "master" { return s }
+        let key = kind + "\u{0}" + s
+        if let v = seen[key] { return v }
+        let v = "\(kind)-\(seen.keys.filter { $0.hasPrefix(kind + "\u{0}") }.count + 1)"
+        seen[key] = v
+        return v
+    }
+    static func account(_ line: String) -> String {
+        guard on else { return line }
+        return line.split(separator: "·").first.map { $0.trimmingCharacters(in: .whitespaces) + " · you@example.com" } ?? line
+    }
+}

@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- Orcy 0.1.0, a second app in the package for Orca (the agent orchestrator): a menu bar orca with agents working (▶) and waiting for you (?), worktrees as Waiting for you / Running / Stopped, today's tasks, agents and agent time, the last 7 days. Read-only: `orca worktree ps --json` and `orca terminal list --json` every 10 s while something works or the panel is open (30 s when quiet), orca-stats.json and orchestration.db every minute. Shows the worktrees Orca hides (it did not create them: `worktree ps` omits them), who runs in each terminal (an Open agents section for idle codex, claude, opencode…), the repo name when there are several, and counts an opencode session running in a worktree's folder as working. Reuses `CodexyCore`. See docs/ORCY.md.
 
 ## [0.1.0] - 2026-10-22
 ### Added
